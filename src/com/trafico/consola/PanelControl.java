@@ -423,6 +423,7 @@ public class PanelControl {
             System.out.printf("  Ciudad cargada: %d intersecciones, %d calles, %d semaforos.%n",
                 mapa.totalIntersecciones(), mapa.totalCalles(), controladorSemaforos.totalSemaforos());
             System.out.println("  Red vial conectada: " + (mapa.esMapaConexo() ? "Si" : "No"));
+            agregarVehiculosDemoVariados();
             System.out.println("  El sistema esta listo para usar.");
 
         } catch (ErrorSistema e) {
