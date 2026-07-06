@@ -139,7 +139,7 @@ public class MotorSimulacion {
                     semaforo.activarModoEmergencia();
                     emergencia.registrarInterrupcionSemaforo();
                     informe.registrarInterrupcionEmergencia();
-                    registrarLog(String.format("🚨 Emergencia %s dio paso libre en el semaforo de %s",
+                    registrarLog(String.format("[EMERGENCIA] Unidad %s dio paso libre en el semaforo de %s",
                         vehiculo.getPlaca(), posicion.getNombre()));
                 }
             }
@@ -186,7 +186,7 @@ public class MotorSimulacion {
                     c.actualizarCongestion();
                     if (c.estaSaturada()) {
                         informe.registrarCalleSaturada(c);
-                        registrarLog(String.format("⚠ Atasco: Via '%s -> %s' esta congestionada.",
+                        registrarLog(String.format("[ATASCO] Via '%s -> %s' esta congestionada.",
                             c.getOrigen().getId(), c.getDestino().getId()));
                     }
                 }

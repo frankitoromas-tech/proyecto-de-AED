@@ -12,8 +12,6 @@ import com.trafico.simulacion.ControladorFlota;
 import com.trafico.simulacion.MotorSimulacion;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -21,14 +19,22 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * <b>Ventana de Simulacion Visual Interactiva Didactica (Java Swing)</b>
+ * <b>Ventana de Simulacion Visual Interactiva</b> (Java Swing puro).
  *
- * <p>Diseño mejorado e intuitivo para cualquier usuario. Incluye panel de leyenda,
- * control de ticks paso a paso, spawner en caliente de vehiculos y un log interactivo
- * en tiempo real para entender el funcionamiento interno de los algoritmos de AED.</p>
+ * <p>Interfaz grafica didactica e intuitiva. Cualquier persona puede controlarla
+ * sin conocimientos tecnicos: basta hacer clic en los botones.</p>
+ *
+ * <p><b>Controles:</b></p>
+ * <ul>
+ *   <li>Reproducir: inicia la simulacion automaticamente tick a tick.</li>
+ *   <li>Pausar: detiene la reproduccion automatica.</li>
+ *   <li>Avanzar 1 Paso: ejecuta un unico tick para inspeccion detallada.</li>
+ *   <li>Slider de velocidad: controla la frecuencia de los ticks automaticos.</li>
+ *   <li>Spawn: agrega vehiculos nuevos en caliente sin detener la simulacion.</li>
+ * </ul>
  *
  * @author Sistema de Gestion de Trafico
- * @version 1.3
+ * @version 2.0
  */
 public class VentanaSimulador extends JFrame {
 
@@ -41,9 +47,12 @@ public class VentanaSimulador extends JFrame {
 
     private JLabel lblTick;
     private JLabel lblVehiculos;
+    private JLabel lblLlegados;
     private JButton btnIniciar;
     private JButton btnPausar;
+    private JButton btnTick;
     private JTextArea txtLogs;
+    private boolean motorConfigurado = false;
 
     public VentanaSimulador(MapaVial mapa, ControladorFlota flota, ControladorSemaforos semaforos) {
         this.mapa = mapa;
@@ -51,137 +60,165 @@ public class VentanaSimulador extends JFrame {
         this.semaforos = semaforos;
         this.random = new Random();
 
-        setTitle("Panel de Simulacion Didactica de Trafico Vial - AED UTP");
-        setSize(1200, 800);
+        setTitle("Simulador de Trafico Vial - Trabajo Final AED (UTP)");
+        setSize(1280, 850);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // Panel Central: Contiene el Mapa y la Leyenda en la parte inferior
-        JPanel panelIzquierdo = new JPanel(new BorderLayout());
+        // --- Panel Central: Mapa + Leyenda ---
+        JPanel panelCentro = new JPanel(new BorderLayout());
         panelMapa = new PanelMapa();
-        panelIzquierdo.add(panelMapa, BorderLayout.CENTER);
+        panelCentro.add(panelMapa, BorderLayout.CENTER);
+        panelCentro.add(crearPanelLeyenda(), BorderLayout.SOUTH);
+        add(panelCentro, BorderLayout.CENTER);
 
-        JPanel panelLeyenda = crearPanelLeyenda();
-        panelIzquierdo.add(panelLeyenda, BorderLayout.SOUTH);
-        add(panelIzquierdo, BorderLayout.CENTER);
-
-        // Panel Derecho: Controles y Registro de Eventos (Logs)
+        // --- Panel Derecho: Controles + Logs ---
         JPanel panelDerecho = new JPanel(new BorderLayout());
-        panelDerecho.setPreferredSize(new Dimension(320, 800));
-
-        JPanel panelControles = crearPanelControles();
-        panelDerecho.add(panelControles, BorderLayout.NORTH);
-
-        JPanel panelLogs = crearPanelLogs();
-        panelDerecho.add(panelLogs, BorderLayout.CENTER);
-
+        panelDerecho.setPreferredSize(new Dimension(340, 850));
+        panelDerecho.add(crearPanelControles(), BorderLayout.NORTH);
+        panelDerecho.add(crearPanelLogs(), BorderLayout.CENTER);
         add(panelDerecho, BorderLayout.EAST);
 
-        // Temporizador de simulacion
-        temporizador = new Timer(1000, new ActionListener() {
+        // --- Temporizador ---
+        temporizador = new Timer(500, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                hacerTickSimulacion();
+                ejecutarUnTick();
             }
         });
 
-        // Log Inicial
-        txtLogs.setText("[Sistema] Simulador visual iniciado. Carga autos y haz click en 'Iniciar'.\n");
+        // --- Mensaje inicial ---
+        txtLogs.append("Bienvenido al Simulador Visual.\n");
+        txtLogs.append("Haz clic en 'Reproducir' para iniciar.\n");
+        txtLogs.append("O usa 'Avanzar 1 Paso' para ir tick a tick.\n\n");
     }
 
-    private void hacerTickSimulacion() {
-        MotorSimulacion motor = MotorSimulacion.getInstancia();
-        if (flota.todosLlegaronAlDestino()) {
-            temporizador.stop();
-            btnIniciar.setEnabled(true);
-            btnPausar.setEnabled(false);
-            actualizarLogs();
-            JOptionPane.showMessageDialog(this,
-                "Todos los vehiculos han llegado exitosamente a su destino.",
-                "Simulacion Completada", JOptionPane.INFORMATION_MESSAGE);
-            mostrarReporteFinal();
-        } else {
-            motor.ejecutarTick();
-            actualizarEstadisticas();
-            actualizarLogs();
-            panelMapa.repaint();
+    // =====================================================================
+    //  LOGICA DE SIMULACION
+    // =====================================================================
+
+    private void asegurarMotorConfigurado() {
+        if (!motorConfigurado) {
+            MotorSimulacion.getInstancia().configurar(mapa, flota, semaforos, 10000);
+            motorConfigurado = true;
         }
     }
 
-    private void actualizarLogs() {
-        List<String> logsMotor = MotorSimulacion.getInstancia().getLogs();
+    private void ejecutarUnTick() {
+        asegurarMotorConfigurado();
+        MotorSimulacion motor = MotorSimulacion.getInstancia();
+
+        if (flota.todosLlegaronAlDestino() && flota.totalActivos() == 0) {
+            temporizador.stop();
+            btnIniciar.setEnabled(true);
+            btnPausar.setEnabled(false);
+            btnTick.setEnabled(true);
+            actualizarInterfaz();
+            JOptionPane.showMessageDialog(this,
+                "Todos los vehiculos llegaron a su destino.\n" +
+                "Puedes agregar mas vehiculos y seguir simulando.",
+                "Simulacion Completada", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        motor.ejecutarTick();
+        actualizarInterfaz();
+    }
+
+    private void actualizarInterfaz() {
+        MotorSimulacion motor = MotorSimulacion.getInstancia();
+        lblTick.setText("Tick: " + motor.getTickActual());
+        lblVehiculos.setText("En ruta: " + flota.totalActivos());
+        lblLlegados.setText("Llegados: " + flota.totalLlegados());
+
+        // Actualizar logs
+        List<String> logsMotor = motor.getLogs();
         StringBuilder sb = new StringBuilder();
         for (String log : logsMotor) {
             sb.append(log).append("\n");
         }
         txtLogs.setText(sb.toString());
-        txtLogs.setCaretPosition(txtLogs.getDocument().getLength()); // scroll al final
+        txtLogs.setCaretPosition(txtLogs.getDocument().getLength());
+
+        panelMapa.repaint();
     }
+
+    // =====================================================================
+    //  PANEL DE CONTROLES
+    // =====================================================================
 
     private JPanel crearPanelControles() {
         JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createTitledBorder("Controles de Ejecucion"));
+        panel.setBorder(BorderFactory.createTitledBorder("Controles de la Simulacion"));
         panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.insets = new Insets(5, 8, 5, 8);
         gbc.gridx = 0;
-
         int fila = 0;
 
-        // Info Tick
-        lblTick = new JLabel("Tick Actual: 0", JLabel.CENTER);
-        lblTick.setFont(new Font("Arial", Font.BOLD, 12));
+        // --- Indicadores ---
+        JPanel panelInfo = new JPanel(new GridLayout(1, 3, 5, 0));
+        lblTick = new JLabel("Tick: 0", JLabel.CENTER);
+        lblTick.setFont(new Font("Arial", Font.BOLD, 11));
+        lblVehiculos = new JLabel("En ruta: " + flota.totalActivos(), JLabel.CENTER);
+        lblVehiculos.setFont(new Font("Arial", Font.BOLD, 11));
+        lblLlegados = new JLabel("Llegados: 0", JLabel.CENTER);
+        lblLlegados.setFont(new Font("Arial", Font.BOLD, 11));
+        panelInfo.add(lblTick);
+        panelInfo.add(lblVehiculos);
+        panelInfo.add(lblLlegados);
         gbc.gridy = fila++;
-        panel.add(lblTick, gbc);
+        panel.add(panelInfo, gbc);
 
-        // Info Vehiculos
-        lblVehiculos = new JLabel("Vehiculos Activos: 0", JLabel.CENTER);
-        lblVehiculos.setFont(new Font("Arial", Font.BOLD, 12));
+        // --- Separador ---
         gbc.gridy = fila++;
-        panel.add(lblVehiculos, gbc);
+        panel.add(new JSeparator(), gbc);
 
-        // Boton Iniciar
-        btnIniciar = new JButton("Reproducir Automat.");
+        // --- Botones de control ---
+        btnIniciar = new JButton("Reproducir (automatico)");
+        btnIniciar.setToolTipText("Inicia la simulacion avanzando ticks automaticamente");
         btnIniciar.addActionListener(e -> {
-            prepararMotorSimulacion();
+            asegurarMotorConfigurado();
             temporizador.start();
             btnIniciar.setEnabled(false);
             btnPausar.setEnabled(true);
+            btnTick.setEnabled(false);
         });
         gbc.gridy = fila++;
         panel.add(btnIniciar, gbc);
 
-        // Boton Pausar
         btnPausar = new JButton("Pausar");
+        btnPausar.setToolTipText("Detiene la reproduccion automatica");
         btnPausar.setEnabled(false);
         btnPausar.addActionListener(e -> {
             temporizador.stop();
             btnIniciar.setEnabled(true);
             btnPausar.setEnabled(false);
+            btnTick.setEnabled(true);
         });
         gbc.gridy = fila++;
         panel.add(btnPausar, gbc);
 
-        // Boton Avanzar 1 Tick (Paso a Paso)
-        JButton btnTick = new JButton("Avanzar 1 Paso (Tick)");
-        btnTick.addActionListener(e -> {
-            prepararMotorSimulacion();
-            hacerTickSimulacion();
-        });
+        btnTick = new JButton("Avanzar 1 Paso");
+        btnTick.setToolTipText("Ejecuta un solo tick para inspeccion detallada");
+        btnTick.addActionListener(e -> ejecutarUnTick());
         gbc.gridy = fila++;
         panel.add(btnTick, gbc);
 
-        // Slider Velocidad
-        JLabel lblVel = new JLabel("Frecuencia (Velocidad):");
+        // --- Slider ---
         gbc.gridy = fila++;
+        JLabel lblVel = new JLabel("Velocidad de reproduccion:");
+        lblVel.setFont(new Font("Arial", Font.PLAIN, 11));
         panel.add(lblVel, gbc);
 
-        JSlider sliderVel = new JSlider(1, 5, 1);
+        JSlider sliderVel = new JSlider(1, 10, 2);
+        sliderVel.setToolTipText("Ajusta la velocidad: 1=lento, 10=muy rapido");
         sliderVel.setPaintTicks(true);
         sliderVel.setPaintLabels(true);
-        sliderVel.setMajorTickSpacing(1);
+        sliderVel.setMajorTickSpacing(3);
+        sliderVel.setMinorTickSpacing(1);
         sliderVel.addChangeListener(e -> {
             int valor = sliderVel.getValue();
             temporizador.setDelay(1000 / valor);
@@ -189,105 +226,141 @@ public class VentanaSimulador extends JFrame {
         gbc.gridy = fila++;
         panel.add(sliderVel, gbc);
 
-        // Separador para Spawners
-        JSeparator sep = new JSeparator();
+        // --- Separador ---
         gbc.gridy = fila++;
-        panel.add(sep, gbc);
+        panel.add(new JSeparator(), gbc);
 
-        // Boton Spawn Particular
-        JButton btnSpawnAuto = new JButton("Spawn Vehiculo Particular");
+        // --- Spawn ---
+        JLabel lblSpawn = new JLabel("Agregar vehiculos en caliente:");
+        lblSpawn.setFont(new Font("Arial", Font.PLAIN, 11));
+        gbc.gridy = fila++;
+        panel.add(lblSpawn, gbc);
+
+        JButton btnSpawnAuto = new JButton("+ Auto Particular");
+        btnSpawnAuto.setToolTipText("Crea un auto particular con origen y destino aleatorios");
         btnSpawnAuto.addActionListener(e -> spawnVehiculo(CategoriaVehiculo.PARTICULAR));
         gbc.gridy = fila++;
         panel.add(btnSpawnAuto, gbc);
 
-        // Boton Spawn Emergencia
-        JButton btnSpawnEmergencia = new JButton("Spawn Ambulancia 🚨");
+        JButton btnSpawnBus = new JButton("+ Bus Urbano");
+        btnSpawnBus.setToolTipText("Crea un bus urbano con ruta aleatoria");
+        btnSpawnBus.addActionListener(e -> spawnVehiculo(CategoriaVehiculo.BUS));
+        gbc.gridy = fila++;
+        panel.add(btnSpawnBus, gbc);
+
+        JButton btnSpawnEmergencia = new JButton("+ Ambulancia (Emergencia)");
+        btnSpawnEmergencia.setToolTipText("Crea una ambulancia con sirena activa y prioridad maxima");
+        btnSpawnEmergencia.setForeground(new Color(0, 80, 180));
         btnSpawnEmergencia.addActionListener(e -> spawnVehiculo(CategoriaVehiculo.EMERGENCIA));
-        btnSpawnEmergencia.setForeground(new Color(0, 100, 200));
         gbc.gridy = fila++;
         panel.add(btnSpawnEmergencia, gbc);
 
         return panel;
     }
 
-    private void prepararMotorSimulacion() {
-        MotorSimulacion motor = MotorSimulacion.getInstancia();
-        if (!motor.isEnEjecucion()) {
-            motor.configurar(mapa, flota, semaforos, 5000);
-        }
-    }
+    // =====================================================================
+    //  PANEL DE LOGS
+    // =====================================================================
 
     private JPanel crearPanelLogs() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Registro de Eventos (Funcionamiento AED)"));
+        panel.setBorder(BorderFactory.createTitledBorder("Registro de Eventos en Tiempo Real"));
 
         txtLogs = new JTextArea();
         txtLogs.setEditable(false);
         txtLogs.setFont(new Font("Monospaced", Font.PLAIN, 11));
-        txtLogs.setBackground(new Color(245, 245, 245));
+        txtLogs.setBackground(new Color(250, 250, 250));
+        txtLogs.setLineWrap(true);
+        txtLogs.setWrapStyleWord(true);
 
         JScrollPane scroll = new JScrollPane(txtLogs);
         panel.add(scroll, BorderLayout.CENTER);
 
-        // Boton Reporte
-        JButton btnReporte = new JButton("Ver Reporte Final Grafico");
-        btnReporte.addActionListener(e -> mostrarReporteFinal());
+        JButton btnReporte = new JButton("Ver Reporte Estadistico Final");
+        btnReporte.setToolTipText("Abre una ventana con graficos de barras de las vias mas congestionadas");
+        btnReporte.addActionListener(e -> {
+            asegurarMotorConfigurado();
+            MotorSimulacion motor = MotorSimulacion.getInstancia();
+            VentanaReporteGrafico rep = new VentanaReporteGrafico(
+                motor.getInforme(), flota.totalVehiculos(), flota.totalLlegados()
+            );
+            rep.setVisible(true);
+        });
         panel.add(btnReporte, BorderLayout.SOUTH);
 
         return panel;
     }
 
+    // =====================================================================
+    //  PANEL DE LEYENDA
+    // =====================================================================
+
     private JPanel crearPanelLeyenda() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-        panel.setBorder(BorderFactory.createTitledBorder("Leyenda Didactica del Mapa Vial"));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 8));
+        panel.setBorder(BorderFactory.createTitledBorder("Leyenda del Mapa"));
         panel.setBackground(Color.WHITE);
 
         // Vias
         panel.add(new JLabel("Vias:"));
-        panel.add(crearElementoLeyenda("Fluida", new Color(40, 167, 69), false));
-        panel.add(crearElementoLeyenda("Moderada", new Color(255, 160, 0), false));
-        panel.add(crearElementoLeyenda("Saturada (Atasco)", new Color(220, 53, 69), false));
+        panel.add(crearMuestra("Fluida (sin trafico)", new Color(40, 167, 69), false));
+        panel.add(crearMuestra("Moderada", new Color(255, 160, 0), false));
+        panel.add(crearMuestra("Congestionada", new Color(220, 53, 69), false));
+
+        panel.add(new JLabel("   "));
 
         // Vehiculos
         panel.add(new JLabel("Vehiculos:"));
-        panel.add(crearElementoLeyenda("Particular (Rojo)", Color.RED, true));
-        panel.add(crearElementoLeyenda("Emergencia (Azul)", Color.BLUE, true));
-        panel.add(crearElementoLeyenda("Bus (Naranja)", Color.ORANGE, true));
-        panel.add(crearElementoLeyenda("Cargo (Gris)", Color.DARK_GRAY, true));
+        panel.add(crearMuestra("Auto", Color.RED, true));
+        panel.add(crearMuestra("Ambulancia", Color.BLUE, true));
+        panel.add(crearMuestra("Bus", Color.ORANGE, true));
+        panel.add(crearMuestra("Camion", Color.DARK_GRAY, true));
+        panel.add(crearMuestra("Moto", Color.MAGENTA, true));
+
+        panel.add(new JLabel("   "));
+
+        // Semaforos
+        panel.add(new JLabel("Semaforo:"));
+        panel.add(crearMuestra("Verde", Color.GREEN, true));
+        panel.add(crearMuestra("Rojo", Color.RED, true));
 
         return panel;
     }
 
-    private JPanel crearElementoLeyenda(String texto, Color color, boolean esCuadrado) {
-        JPanel elemento = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        elemento.setBackground(Color.WHITE);
+    private JPanel crearMuestra(String texto, Color color, boolean esCuadrado) {
+        JPanel elem = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
+        elem.setBackground(Color.WHITE);
 
-        JPanel muestra = new JPanel() {
+        JPanel icono = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 g.setColor(color);
                 if (esCuadrado) {
-                    g.fillRect(0, 4, 12, 12);
+                    g.fillRect(1, 3, 12, 12);
                 } else {
                     Graphics2D g2 = (Graphics2D) g;
                     g2.setStroke(new BasicStroke(3f));
-                    g2.drawLine(0, 10, 20, 10);
+                    g2.drawLine(0, 9, 18, 9);
                 }
             }
         };
-        muestra.setPreferredSize(new Dimension(20, 20));
-        muestra.setBackground(Color.WHITE);
+        icono.setPreferredSize(new Dimension(18, 18));
+        icono.setBackground(Color.WHITE);
 
         JLabel lbl = new JLabel(texto);
-        lbl.setFont(new Font("Arial", Font.PLAIN, 11));
+        lbl.setFont(new Font("Arial", Font.PLAIN, 10));
 
-        elemento.add(muestra);
-        elemento.add(lbl);
-        return elemento;
+        elem.add(icono);
+        elem.add(lbl);
+        return elem;
     }
 
+    // =====================================================================
+    //  SPAWN DE VEHICULOS
+    // =====================================================================
+
     private void spawnVehiculo(CategoriaVehiculo cat) {
+        asegurarMotorConfigurado();
         List<Interseccion> intersecciones = mapa.todasLasIntersecciones();
         if (intersecciones.size() < 2) return;
 
@@ -297,38 +370,24 @@ public class VentanaSimulador extends JFrame {
             destino = intersecciones.get(random.nextInt(intersecciones.size()));
         } while (origen.equals(destino));
 
-        String placa = "SPW-" + (random.nextInt(899) + 100);
+        String placa = cat.name().substring(0, 3) + "-" + (random.nextInt(899) + 100);
         Vehiculo v = FabricaVehiculos.crear(cat, placa, origen, destino);
         flota.registrar(v);
 
-        MotorSimulacion.getInstancia().registrarLog(String.format("Spawneado: Vehiculo %s (%s) de '%s' a '%s'",
+        MotorSimulacion.getInstancia().registrarLog(String.format("Nuevo vehiculo: %s (%s) de '%s' a '%s'",
             placa, cat, origen.getNombre(), destino.getNombre()));
 
-        actualizarEstadisticas();
-        actualizarLogs();
-        panelMapa.repaint();
+        actualizarInterfaz();
     }
 
-    private void mostrarReporteFinal() {
-        MotorSimulacion motor = MotorSimulacion.getInstancia();
-        VentanaReporteGrafico rep = new VentanaReporteGrafico(
-            motor.getInforme(), flota.totalVehiculos(), flota.totalLlegados()
-        );
-        rep.setVisible(true);
-    }
-
-    private void actualizarEstadisticas() {
-        MotorSimulacion motor = MotorSimulacion.getInstancia();
-        lblTick.setText("Tick Actual: " + motor.getTickActual());
-        lblVehiculos.setText("Vehiculos Activos: " + flota.totalActivos());
-    }
-
-    // ─── Canvas de Dibujo 2D ──────────────────────────────────────────────────
+    // =====================================================================
+    //  CANVAS DE DIBUJO 2D (MAPA VIAL)
+    // =====================================================================
 
     private class PanelMapa extends JPanel {
 
-        public PanelMapa() {
-            setBackground(new Color(240, 242, 245));
+        PanelMapa() {
+            setBackground(new Color(245, 247, 250));
         }
 
         @Override
@@ -336,112 +395,129 @@ public class VentanaSimulador extends JFrame {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
             if (mapa.totalIntersecciones() == 0) {
                 g2.setColor(Color.GRAY);
-                g2.drawString("No hay mapa vial cargado. Carga el mapa de demo primero.", 50, 50);
+                g2.setFont(new Font("Arial", Font.ITALIC, 14));
+                g2.drawString("No hay mapa cargado. Carga una ciudad desde el menu de consola.", 40, 50);
                 return;
             }
 
-            // Dimensiones para escalar coordenadas
-            double minX = Double.MAX_VALUE, maxX = Double.MIN_VALUE;
-            double minY = Double.MAX_VALUE, maxY = Double.MIN_VALUE;
-
+            // Calcular limites para escalar
+            double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE;
+            double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
             for (Interseccion i : mapa.todasLasIntersecciones()) {
                 if (i.getX() < minX) minX = i.getX();
                 if (i.getX() > maxX) maxX = i.getX();
                 if (i.getY() < minY) minY = i.getY();
                 if (i.getY() > maxY) maxY = i.getY();
             }
+            double rX = (maxX - minX == 0) ? 1.0 : (maxX - minX);
+            double rY = (maxY - minY == 0) ? 1.0 : (maxY - minY);
+            int margen = 80;
+            int anchoUtil = getWidth() - margen * 2;
+            int altoUtil = getHeight() - margen * 2;
 
-            double anchoRango = (maxX - minX == 0) ? 1.0 : (maxX - minX);
-            double altoRango = (maxY - minY == 0) ? 1.0 : (maxY - minY);
-
-            // 1. Dibujar Calles (Aristas)
+            // 1. Dibujar calles (aristas del grafo)
             for (Interseccion origen : mapa.todasLasIntersecciones()) {
                 try {
                     for (Calle calle : mapa.callesDesdePunto(origen.getId())) {
                         Interseccion dest = calle.getDestino();
+                        int x1 = margen + (int)(((origen.getX() - minX) / rX) * anchoUtil);
+                        int y1 = margen + (int)(((origen.getY() - minY) / rY) * altoUtil);
+                        int x2 = margen + (int)(((dest.getX() - minX) / rX) * anchoUtil);
+                        int y2 = margen + (int)(((dest.getY() - minY) / rY) * altoUtil);
 
-                        int x1 = escalar(origen.getX(), minX, anchoRango, getWidth() - 150) + 30;
-                        int y1 = escalar(origen.getY(), minY, altoRango, getHeight() - 100) + 30;
-                        int x2 = escalar(dest.getX(), minX, anchoRango, getWidth() - 150) + 30;
-                        int y2 = escalar(dest.getY(), minY, altoRango, getHeight() - 100) + 30;
-
-                        // Color segun congestión
                         if (calle.estaSaturada()) {
-                            g2.setColor(new Color(220, 53, 69)); // Rojo
-                            g2.setStroke(new BasicStroke(3.5f));
+                            g2.setColor(new Color(220, 53, 69));
+                            g2.setStroke(new BasicStroke(4f));
                         } else if (calle.getCongestion() > 0.4) {
-                            g2.setColor(new Color(255, 160, 0)); // Naranja
-                            g2.setStroke(new BasicStroke(2.2f));
+                            g2.setColor(new Color(255, 160, 0));
+                            g2.setStroke(new BasicStroke(2.5f));
                         } else {
-                            g2.setColor(new Color(40, 167, 69)); // Verde
-                            g2.setStroke(new BasicStroke(1.5f));
+                            g2.setColor(new Color(40, 167, 69));
+                            g2.setStroke(new BasicStroke(1.8f));
                         }
-
                         g2.drawLine(x1, y1, x2, y2);
                     }
                 } catch (Exception ignored) {}
             }
 
-            // 2. Dibujar Intersecciones (Nodos)
+            // 2. Dibujar intersecciones (nodos del grafo)
             for (Interseccion i : mapa.todasLasIntersecciones()) {
-                int x = escalar(i.getX(), minX, anchoRango, getWidth() - 150) + 30;
-                int y = escalar(i.getY(), minY, altoRango, getHeight() - 100) + 30;
+                int x = margen + (int)(((i.getX() - minX) / rX) * anchoUtil);
+                int y = margen + (int)(((i.getY() - minY) / rY) * altoUtil);
 
-                // Dibujar circulo de interseccion
+                // Circulo del nodo
                 g2.setColor(Color.WHITE);
-                g2.fillOval(x - 12, y - 12, 24, 24);
-                g2.setColor(new Color(60, 80, 100));
+                g2.fillOval(x - 14, y - 14, 28, 28);
+                g2.setColor(new Color(50, 70, 90));
                 g2.setStroke(new BasicStroke(2f));
-                g2.drawOval(x - 12, y - 12, 24, 24);
+                g2.drawOval(x - 14, y - 14, 28, 28);
 
-                // Dibujar identificador
-                g2.setFont(new Font("Arial", Font.BOLD, 12));
-                g2.drawString(i.getId(), x - 4, y + 4);
+                // ID dentro del circulo
+                g2.setFont(new Font("Arial", Font.BOLD, 13));
+                FontMetrics fm = g2.getFontMetrics();
+                int tw = fm.stringWidth(i.getId());
+                g2.drawString(i.getId(), x - tw / 2, y + 5);
 
-                // Dibujar Semaforo si tiene
+                // Nombre debajo del nodo
+                g2.setFont(new Font("Arial", Font.PLAIN, 9));
+                fm = g2.getFontMetrics();
+                String nombre = i.getNombre();
+                if (nombre.length() > 18) nombre = nombre.substring(0, 16) + "..";
+                int nw = fm.stringWidth(nombre);
+                g2.setColor(new Color(80, 80, 80));
+                g2.drawString(nombre, x - nw / 2, y + 24);
+
+                // Semaforo (indicador de luz)
                 if (i.isTieneSemaforo()) {
                     Semaforo sem = semaforos.buscarPorInterseccion(i.getId());
                     if (sem != null) {
                         switch (sem.getLuzActual()) {
-                            case VERDE: g2.setColor(Color.GREEN); break;
-                            case AMARILLO: g2.setColor(Color.YELLOW); break;
-                            case ROJO: g2.setColor(Color.RED); break;
-                            case EMERGENCIA_ACTIVA: g2.setColor(Color.BLUE); break;
+                            case VERDE: g2.setColor(new Color(0, 200, 0)); break;
+                            case AMARILLO: g2.setColor(new Color(255, 220, 0)); break;
+                            case ROJO: g2.setColor(new Color(230, 30, 30)); break;
+                            case EMERGENCIA_ACTIVA: g2.setColor(new Color(0, 100, 255)); break;
                         }
-                        g2.fillOval(x + 12, y - 18, 11, 11);
+                        g2.fillOval(x + 14, y - 20, 12, 12);
                         g2.setColor(Color.BLACK);
-                        g2.drawOval(x + 12, y - 18, 11, 11);
+                        g2.drawOval(x + 14, y - 20, 12, 12);
                     }
                 }
             }
 
-            // 3. Dibujar Vehiculos Activos
+            // 3. Dibujar vehiculos
             for (Vehiculo v : flota.getVehiculosActivos()) {
                 Interseccion pos = v.getPosicion();
-                if (pos != null) {
-                    int x = escalar(pos.getX(), minX, anchoRango, getWidth() - 150) + 30;
-                    int y = escalar(pos.getY(), minY, altoRango, getHeight() - 100) + 30;
+                if (pos == null) continue;
 
-                    // Color de acuerdo al tipo
-                    switch (v.getCategoria()) {
-                        case EMERGENCIA: g2.setColor(Color.BLUE); break;
-                        case BUS: g2.setColor(Color.ORANGE); break;
-                        case CARGA: g2.setColor(Color.DARK_GRAY); break;
-                        case MOTOCICLETA: g2.setColor(Color.MAGENTA); break;
-                        default: g2.setColor(Color.RED); break;
-                    }
-                    g2.fillRect(x - 6, y - 6, 12, 12);
-                    g2.setColor(Color.BLACK);
-                    g2.drawRect(x - 6, y - 6, 12, 12);
+                int x = margen + (int)(((pos.getX() - minX) / rX) * anchoUtil);
+                int y = margen + (int)(((pos.getY() - minY) / rY) * altoUtil);
+
+                // Desplazar ligeramente para no solaparse con el nodo
+                int offset = (v.getPlaca().hashCode() % 20) - 10;
+                x += offset;
+                y += offset;
+
+                switch (v.getCategoria()) {
+                    case EMERGENCIA: g2.setColor(Color.BLUE); break;
+                    case BUS: g2.setColor(Color.ORANGE); break;
+                    case CARGA: g2.setColor(Color.DARK_GRAY); break;
+                    case MOTOCICLETA: g2.setColor(Color.MAGENTA); break;
+                    default: g2.setColor(Color.RED); break;
                 }
-            }
-        }
 
-        private int escalar(double valor, double min, double rango, int dimension) {
-            return (int) (((valor - min) / rango) * (dimension - 60));
+                g2.fillRect(x - 5, y - 5, 10, 10);
+                g2.setColor(Color.BLACK);
+                g2.drawRect(x - 5, y - 5, 10, 10);
+
+                // Placa del vehiculo
+                g2.setFont(new Font("Arial", Font.PLAIN, 8));
+                g2.setColor(new Color(60, 60, 60));
+                g2.drawString(v.getPlaca(), x + 7, y + 3);
+            }
         }
     }
 }

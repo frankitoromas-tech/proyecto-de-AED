@@ -23,17 +23,14 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * Panel de Control — interfaz de usuario interactiva por consola.
+ * Panel de Control -- interfaz de usuario interactiva por consola.
  *
- * <p>Permite al operador del sistema configurar la red vial, registrar vehiculos,
- * calcular rutas, ver el estado de los semaforos, iniciar la simulacion y
- * exportar informes — todo desde un menu navegable por teclado.</p>
- *
- * <p><b>Rubrica UTP:</b> Integra demostraciones especificas de Arreglos, Listas Enlazadas,
- * Pilas, Colas, Arbol AVL y Algoritmos de Busqueda y Ordenamiento.</p>
+ * <p>Menu principal intuitivo y facil de usar. Carga automaticamente una ciudad
+ * de ejemplo al iniciar para que el usuario pueda explorar el sistema sin
+ * necesidad de configuracion manual previa.</p>
  *
  * @author Sistema de Gestion de Trafico
- * @version 1.1
+ * @version 2.0
  */
 public class PanelControl {
 
@@ -59,26 +56,30 @@ public class PanelControl {
         this.listaEnlazada = new ListaEnlazadaSimple<>();
     }
 
-    // ─── Bucle principal ──────────────────────────────────────────────────────
+    // === BUCLE PRINCIPAL =====================================================
 
     public void iniciar() {
         mostrarBienvenida();
+
+        // Cargar ciudad demo automaticamente al iniciar
+        cargarCiudadDemoSilencioso();
+
         boolean ejecutando = true;
 
         while (ejecutando) {
             mostrarMenuPrincipal();
-            int opcion = leerEnteroValidado("Seleccione una opcion", 1, 9);
+            int opcion = leerEnteroValidado("Tu eleccion", 0, 8);
 
             switch (opcion) {
-                case 1: menuDisenarRedVial();       break;
-                case 2: menuRegistrarVehiculo();    break;
-                case 3: menuCalcularRuta();         break;
-                case 4: menuEstadoSemaforos();      break;
-                case 5: menuIniciarSimulacion();    break;
-                case 6: menuVerEstadisticas();      break;
-                case 7: menuGuardarCargarMapa();    break;
-                case 8: menuRubricaUTP();           break;
-                case 9: ejecutando = false;          break;
+                case 1: menuSimuladorVisual();       break;
+                case 2: menuSimulacionConsola();      break;
+                case 3: menuRegistrarVehiculo();      break;
+                case 4: menuCalcularRuta();           break;
+                case 5: menuEstadoSemaforos();        break;
+                case 6: menuAdministrarCiudad();      break;
+                case 7: menuVerEstadisticas();        break;
+                case 8: menuRubricaUTP();             break;
+                case 0: ejecutando = false;           break;
             }
         }
 
@@ -86,121 +87,288 @@ public class PanelControl {
         entrada.close();
     }
 
-    // ─── Menus ────────────────────────────────────────────────────────────────
+    // === PANTALLAS ===========================================================
 
     private void mostrarBienvenida() {
-        System.out.println("\n");
-        System.out.println("  +---------------------------------------------------+");
-        System.out.println("  |                                                   |");
-        System.out.println("  |     SISTEMA DE GESTION DE TRAFICO VIAL            |");
-        System.out.println("  |         Algoritmos y Estructuras de Datos         |");
-        System.out.println("  |                                                   |");
-        System.out.println("  +---------------------------------------------------+");
         System.out.println();
+        System.out.println("  ===================================================");
+        System.out.println("     SISTEMA DE GESTION DE TRAFICO VIAL");
+        System.out.println("     Trabajo Final - Algoritmos y Estructuras de Datos");
+        System.out.println("     Universidad Tecnologica del Peru (UTP)");
+        System.out.println("  ===================================================");
+        System.out.println();
+        System.out.println("  Cargando ciudad de ejemplo automaticamente...");
     }
 
     private void mostrarMenuPrincipal() {
-        System.out.println("\n  +-----------------------------------------------+");
-        System.out.println("  |              MENU PRINCIPAL                   |");
-        System.out.println("  +-----------------------------------------------+");
-        System.out.printf("  |  Red vial: %3d intersecciones, %3d calles      |%n",
-            mapa.totalIntersecciones(), mapa.totalCalles());
-        System.out.printf("  |  Vehiculos: %3d activos | Semaforos: %3d       |%n",
-            flota.totalActivos(), controladorSemaforos.totalSemaforos());
-        System.out.println("  +-----------------------------------------------+");
-        System.out.println("  |  1. Disenar la red vial de la ciudad          |");
-        System.out.println("  |  2. Registrar un vehiculo nuevo               |");
-        System.out.println("  |  3. Calcular ruta entre dos puntos            |");
-        System.out.println("  |  4. Consultar estado de semaforos             |");
-        System.out.println("  |  5. Iniciar simulacion de trafico             |");
-        System.out.println("  |  6. Ver estadisticas de la simulacion         |");
-        System.out.println("  |  7. Guardar / Cargar mapa de ciudad           |");
-        System.out.println("  |  8. Demostracion de Estructuras (Rubrica UTP) |");
-        System.out.println("  |  9. Salir del sistema                         |");
-        System.out.println("  +-----------------------------------------------+");
+        System.out.println();
+        System.out.println("  ---------------------------------------------------");
+        System.out.println("                   MENU PRINCIPAL");
+        System.out.println("  ---------------------------------------------------");
+        System.out.printf("   Ciudad: %d intersecciones | %d calles | %d semaforos%n",
+            mapa.totalIntersecciones(), mapa.totalCalles(), controladorSemaforos.totalSemaforos());
+        System.out.printf("   Flota:  %d vehiculos activos | %d llegados%n",
+            flota.totalActivos(), flota.totalLlegados());
+        System.out.println("  ---------------------------------------------------");
+        System.out.println();
+        System.out.println("   1. Abrir Simulador Visual (Ventana Grafica)");
+        System.out.println("   2. Ejecutar Simulacion Rapida (Consola)");
+        System.out.println("   3. Agregar Vehiculo a la Flota");
+        System.out.println("   4. Calcular Ruta entre Dos Puntos");
+        System.out.println("   5. Ver Estado de los Semaforos");
+        System.out.println("   6. Administrar la Ciudad (Mapa Vial)");
+        System.out.println("   7. Ver Estadisticas del Sistema");
+        System.out.println("   8. Estructuras de Datos (Rubrica UTP)");
+        System.out.println("   0. Salir");
+        System.out.println();
     }
 
-    // ─── Opcion 1: Disenar la red vial ────────────────────────────────────────
+    // === OPCION 1: SIMULADOR VISUAL ==========================================
 
-    private void menuDisenarRedVial() {
-        System.out.println("\n  === DISENAR RED VIAL ===");
-        System.out.println("  1. Agregar interseccion manualmente");
-        System.out.println("  2. Agregar calle entre dos intersecciones");
-        System.out.println("  3. Ver el mapa actual");
-        System.out.println("  4. Cargar ciudad de ejemplo (demo)");
-        System.out.println("  0. Volver");
-
-        int opcion = leerEnteroValidado("Opcion", 0, 4);
-        switch (opcion) {
-            case 1: agregarInterseccion(); break;
-            case 2: agregarCalle();        break;
-            case 3: mapa.mostrarMapa();    break;
-            case 4: cargarCiudadDemo();    break;
+    private void menuSimuladorVisual() {
+        if (mapa.totalIntersecciones() < 2) {
+            System.out.println("  [!] Primero carga una ciudad (opcion 6).");
+            return;
         }
-    }
 
-    private void agregarInterseccion() {
-        System.out.print("  ID de la interseccion: ");
-        String id = entrada.nextLine().trim();
-        System.out.print("  Nombre (ej. Av. Central con Calle 5): ");
-        String nombre = entrada.nextLine().trim();
-        System.out.print("  Coordenada X (metros): ");
-        double x = leerDouble();
-        System.out.print("  Coordenada Y (metros): ");
-        double y = leerDouble();
-        System.out.print("  ¿Tiene semaforo? (s/n): ");
-        boolean semaforo = entrada.nextLine().trim().equalsIgnoreCase("s");
+        System.out.println("\n  Abriendo el Simulador Visual...");
+        System.out.println("  Tip: Usa los botones de la ventana para controlar la simulacion.");
+        System.out.println("       Puedes agregar vehiculos en caliente y avanzar paso a paso.");
 
-        try {
-            Interseccion nueva = new Interseccion(id, nombre, x, y);
-            nueva.setTieneSemaforo(semaforo);
-            mapa.agregarInterseccion(nueva);
-
-            if (semaforo) {
-                Semaforo sem = new Semaforo("SEM-" + id, nueva, 10, 10);
-                controladorSemaforos.registrar(sem);
-            }
-            System.out.println("  * Interseccion '" + nombre + "' agregada.");
-        } catch (ErrorSistema e) {
-            System.out.println("  x Error: " + e.getMessage());
+        // Precargar vehiculos de prueba si no hay ninguno
+        if (flota.totalActivos() == 0) {
+            agregarVehiculosDemoVariados();
         }
+
+        SwingUtilities.invokeLater(() -> {
+            VentanaSimulador gui = new VentanaSimulador(mapa, flota, controladorSemaforos);
+            gui.setVisible(true);
+        });
     }
 
-    private void agregarCalle() {
-        System.out.print("  ID interseccion de origen: ");
-        String origenId = entrada.nextLine().trim();
-        System.out.print("  ID interseccion de destino: ");
-        String destinoId = entrada.nextLine().trim();
+    // === OPCION 2: SIMULACION EN CONSOLA =====================================
+
+    private void menuSimulacionConsola() {
+        if (mapa.totalIntersecciones() < 2) {
+            System.out.println("  [!] Primero carga una ciudad (opcion 6).");
+            return;
+        }
+
+        System.out.println("\n  === SIMULACION RAPIDA EN CONSOLA ===");
+
+        if (flota.totalActivos() == 0) {
+            System.out.println("  No hay vehiculos registrados. Agregando flota de prueba...");
+            agregarVehiculosDemoVariados();
+        }
+
+        System.out.println("  Vehiculos activos: " + flota.totalActivos());
+        System.out.print("  Cuantos ticks simular? (recomendado: 50-200): ");
+        int ticks = leerEnteroValidado("Ticks", 1, 10000);
+
+        MotorSimulacion motor = MotorSimulacion.getInstancia();
+        motor.configurar(mapa, flota, controladorSemaforos, ticks);
+        motor.ejecutar();
+
+        InformeTrafico informe = motor.getInforme();
+        informe.mostrarEnConsola(motor.getTickActual(), flota.totalVehiculos(), flota.totalLlegados());
+    }
+
+    // === OPCION 3: REGISTRAR VEHICULO ========================================
+
+    private void menuRegistrarVehiculo() {
+        if (mapa.totalIntersecciones() < 2) {
+            System.out.println("  [!] Primero carga una ciudad (opcion 6).");
+            return;
+        }
+
+        System.out.println("\n  === AGREGAR VEHICULO A LA FLOTA ===");
+        System.out.println("  Que tipo de vehiculo quieres agregar?");
+        System.out.println();
+        System.out.println("   1. Auto Particular      (velocidad media, prioridad normal)");
+        System.out.println("   2. Ambulancia            (alta velocidad, prioridad maxima)");
+        System.out.println("   3. Bus Urbano            (velocidad baja, transporte masivo)");
+        System.out.println("   4. Camion de Carga       (velocidad baja, transporte pesado)");
+        System.out.println("   5. Motocicleta           (alta velocidad, agil)");
+        System.out.println("   0. Volver al menu");
+        System.out.println();
+
+        int tipo = leerEnteroValidado("Tipo de vehiculo", 0, 5);
+        if (tipo == 0) return;
+
+        System.out.print("  Placa del vehiculo (ej. ABC-123): ");
+        String placa = entrada.nextLine().trim().toUpperCase();
+        if (placa.isEmpty()) placa = "VEH-" + (int)(Math.random() * 900 + 100);
+
+        // Mostrar intersecciones disponibles
+        System.out.println("\n  Intersecciones disponibles:");
+        List<Interseccion> todas = mapa.todasLasIntersecciones();
+        for (int i = 0; i < todas.size(); i++) {
+            Interseccion inter = todas.get(i);
+            System.out.printf("   [%s] %s%n", inter.getId(), inter.getNombre());
+        }
+
+        System.out.print("\n  ID del punto de ORIGEN: ");
+        String origenId = entrada.nextLine().trim().toUpperCase();
+        System.out.print("  ID del punto de DESTINO: ");
+        String destinoId = entrada.nextLine().trim().toUpperCase();
 
         Interseccion origen  = mapa.buscarInterseccion(origenId);
         Interseccion destino = mapa.buscarInterseccion(destinoId);
 
         if (origen == null || destino == null) {
-            System.out.println("  x Una o ambas intersecciones no existen.");
+            System.out.println("  [X] Error: Una o ambas intersecciones no existen.");
+            return;
+        }
+        if (origen.equals(destino)) {
+            System.out.println("  [X] Error: Origen y destino deben ser diferentes.");
             return;
         }
 
-        System.out.print("  Distancia en metros: ");
-        double dist = leerDouble();
-        System.out.print("  Velocidad maxima (km/h): ");
-        double vel = leerDouble();
-        System.out.println("  Categoria (RESIDENCIAL/AVENIDA/AUTOPISTA/EXCLUSIVA_BUS): ");
-        String cat = entrada.nextLine().trim().toUpperCase();
-        System.out.print("  ¿Es doble via? (s/n): ");
-        boolean doble = entrada.nextLine().trim().equalsIgnoreCase("s");
+        Vehiculo vehiculo;
+        switch (tipo) {
+            case 1: vehiculo = FabricaVehiculos.crearAutoParticular(placa, "Sedan", origen, destino); break;
+            case 2: vehiculo = FabricaVehiculos.crearUnidadEmergencia(placa, UnidadEmergencia.Tipo.AMBULANCIA, origen, destino); break;
+            case 3: vehiculo = FabricaVehiculos.crearBusUrbano(placa, "Ruta-Urbana", 45, origen, destino); break;
+            case 4: vehiculo = FabricaVehiculos.crear(CategoriaVehiculo.CARGA, placa, origen, destino); break;
+            case 5: vehiculo = FabricaVehiculos.crear(CategoriaVehiculo.MOTOCICLETA, placa, origen, destino); break;
+            default: return;
+        }
+
+        flota.registrar(vehiculo);
+    }
+
+    // === OPCION 4: CALCULAR RUTA =============================================
+
+    private void menuCalcularRuta() {
+        if (mapa.totalIntersecciones() < 2) {
+            System.out.println("  [!] Primero carga una ciudad (opcion 6).");
+            return;
+        }
+
+        System.out.println("\n  === CALCULAR RUTA ENTRE DOS PUNTOS ===");
+        System.out.println("  Que algoritmo quieres usar?");
+        System.out.println();
+        System.out.println("   1. Dijkstra          - Encuentra la ruta mas corta");
+        System.out.println("   2. A* (A-Estrella)   - Ruta optimizada con heuristica");
+        System.out.println("   3. Bellman-Ford      - Maneja atascos con pesos negativos");
+        System.out.println("   4. BFS               - Ruta con menos semaforos (paradas)");
+        System.out.println("   5. Comparar los 4 algoritmos a la vez");
+        System.out.println();
+
+        int algoritmo = leerEnteroValidado("Algoritmo", 1, 5);
+
+        // Mostrar intersecciones
+        System.out.println("\n  Intersecciones disponibles:");
+        for (Interseccion i : mapa.todasLasIntersecciones()) {
+            System.out.printf("   [%s] %s%n", i.getId(), i.getNombre());
+        }
+
+        System.out.print("\n  ID de origen: ");
+        String origenId = entrada.nextLine().trim().toUpperCase();
+        System.out.print("  ID de destino: ");
+        String destinoId = entrada.nextLine().trim().toUpperCase();
+
+        if (algoritmo == 5) {
+            new ComparadorRutas().comparar(mapa, origenId, destinoId);
+            return;
+        }
+
+        EstrategiaRuta[] estrategias = {
+            new RutaMasCorta(), new RutaOptimizada(),
+            new RutaConGestion(), new RutaMenosSemaforos()
+        };
 
         try {
-            com.trafico.modelo.CategoriaCalle categoria =
-                com.trafico.modelo.CategoriaCalle.valueOf(cat);
-            mapa.agregarCalle(new com.trafico.modelo.Calle(origen, destino, dist, vel, categoria, doble));
-            System.out.println("  * Calle agregada: " + origenId + " -> " + destinoId);
-        } catch (IllegalArgumentException | ErrorSistema e) {
-            System.out.println("  x Error: " + e.getMessage());
+            List<Interseccion> ruta = estrategias[algoritmo - 1].calcularRuta(mapa, origenId, destinoId);
+            System.out.printf("%n  Ruta encontrada por %s (%d paradas):%n",
+                estrategias[algoritmo - 1].getNombre(), ruta.size());
+            for (int i = 0; i < ruta.size(); i++) {
+                String marca = (i == 0) ? "INICIO" : (i == ruta.size() - 1) ? "FIN" : "  >>  ";
+                System.out.printf("   %6s  [%s] %s%n", marca, ruta.get(i).getId(), ruta.get(i).getNombre());
+            }
+        } catch (ErrorRutaImposible e) {
+            System.out.println("  [X] " + e.getMessage());
         }
     }
 
-    private void cargarCiudadDemo() {
-        System.out.println("\n  Cargando ciudad de demo (12 intersecciones)...");
+    // === OPCION 5: ESTADO DE SEMAFOROS ========================================
+
+    private void menuEstadoSemaforos() {
+        if (controladorSemaforos.totalSemaforos() == 0) {
+            System.out.println("  [!] No hay semaforos configurados en la ciudad.");
+            return;
+        }
+        controladorSemaforos.mostrarEstado();
+    }
+
+    // === OPCION 6: ADMINISTRAR CIUDAD ========================================
+
+    private void menuAdministrarCiudad() {
+        System.out.println("\n  === ADMINISTRAR CIUDAD (MAPA VIAL) ===");
+        System.out.println();
+        System.out.println("   1. Ver el mapa actual de la ciudad");
+        System.out.println("   2. Recargar la ciudad de ejemplo (demo)");
+        System.out.println("   3. Agregar una interseccion manualmente");
+        System.out.println("   4. Agregar una calle entre intersecciones");
+        System.out.println("   5. Cargar mapa desde archivo .txt");
+        System.out.println("   6. Exportar mapa a archivo .txt");
+        System.out.println("   0. Volver al menu");
+        System.out.println();
+
+        int opcion = leerEnteroValidado("Opcion", 0, 6);
+        switch (opcion) {
+            case 1: mapa.mostrarMapa();       break;
+            case 2: recargarCiudadDemo();     break;
+            case 3: agregarInterseccion();    break;
+            case 4: agregarCalle();           break;
+            case 5: cargarDesdeArchivo();      break;
+            case 6: exportarAArchivo();        break;
+        }
+    }
+
+    // === OPCION 7: ESTADISTICAS ==============================================
+
+    private void menuVerEstadisticas() {
+        System.out.println("\n  === ESTADISTICAS DEL SISTEMA ===");
+        System.out.println();
+        System.out.printf("  Intersecciones    : %d%n", mapa.totalIntersecciones());
+        System.out.printf("  Calles            : %d%n", mapa.totalCalles());
+        System.out.printf("  Semaforos         : %d%n", controladorSemaforos.totalSemaforos());
+        System.out.printf("  Vehiculos activos : %d%n", flota.totalActivos());
+        System.out.printf("  Vehiculos llegados: %d%n", flota.totalLlegados());
+        System.out.printf("  Cache de rutas    : %s%n", flota.getEstadisticasCache());
+        System.out.printf("  Mapa conexo       : %s%n", mapa.esMapaConexo() ? "Si" : "No");
+    }
+
+    // === OPCION 8: RUBRICA UTP ===============================================
+
+    private void menuRubricaUTP() {
+        System.out.println("\n  === DEMOSTRACION DE ESTRUCTURAS DE DATOS (RUBRICA UTP) ===");
+        System.out.println("  Estas demos muestran las estructuras exigidas por la rubrica.");
+        System.out.println();
+        System.out.println("   1. Arbol AVL       (Insercion, busqueda, eliminacion, recorridos)");
+        System.out.println("   2. Lista Enlazada  (Nodos manuales, insertar, eliminar, buscar)");
+        System.out.println("   3. Ordenamiento    (Burbuja, Insercion, Seleccion sobre arreglos)");
+        System.out.println("   4. Busqueda        (Secuencial y Binaria sobre arreglos)");
+        System.out.println("   0. Volver al menu");
+        System.out.println();
+
+        int opcion = leerEnteroValidado("Que demo ejecutar", 0, 4);
+        switch (opcion) {
+            case 1: demoArbolAVL(); break;
+            case 2: demoListaEnlazada(); break;
+            case 3: demoOrdenamientoArreglos(); break;
+            case 4: demoBusquedas(); break;
+        }
+    }
+
+    // === CARGA AUTOMATICA DE CIUDAD DEMO =====================================
+
+    /**
+     * Carga la ciudad de ejemplo automaticamente al iniciar el sistema.
+     * No requiere interaccion del usuario.
+     */
+    private void cargarCiudadDemoSilencioso() {
         try {
             String[][] intersecciones = {
                 {"A", "Plaza Central",        "0",    "0"},
@@ -252,276 +420,232 @@ public class PanelControl {
                 controladorSemaforos.registrar(new Semaforo("SEM-" + id, i, 10, 10));
             }
 
-            System.out.printf("  * Ciudad demo cargada: %d intersecciones, %d calles, %d semaforos.%n",
+            System.out.printf("  Ciudad cargada: %d intersecciones, %d calles, %d semaforos.%n",
                 mapa.totalIntersecciones(), mapa.totalCalles(), controladorSemaforos.totalSemaforos());
-            System.out.println("  ¿Conectada? -> " + (mapa.esMapaConexo() ? "Si" : "No"));
+            System.out.println("  Red vial conectada: " + (mapa.esMapaConexo() ? "Si" : "No"));
+            System.out.println("  El sistema esta listo para usar.");
 
         } catch (ErrorSistema e) {
-            System.out.println("  x Error al cargar demo: " + e.getMessage());
+            System.out.println("  [!] Error al cargar demo: " + e.getMessage());
         }
     }
 
-    // ─── Opcion 2: Registrar vehiculo ─────────────────────────────────────────
+    private void recargarCiudadDemo() {
+        System.out.println("\n  Reiniciando ciudad...");
+        this.mapa = new MapaCiudadGrande();
+        this.controladorSemaforos = new ControladorSemaforos();
+        this.flota = new ControladorFlota(mapa);
+        cargarCiudadDemoSilencioso();
+    }
 
-    private void menuRegistrarVehiculo() {
-        if (mapa.totalIntersecciones() < 2) {
-            System.out.println("  x Debes tener al menos 2 intersecciones para agregar vehiculos.");
-            return;
+    // === VEHICULOS DE EJEMPLO VARIADOS =======================================
+
+    /**
+     * Agrega una flota variada de vehiculos de prueba con rutas diversas.
+     * Se usa cuando el usuario inicia la simulacion sin haber agregado vehiculos.
+     */
+    private void agregarVehiculosDemoVariados() {
+        List<Interseccion> lista = mapa.todasLasIntersecciones();
+        if (lista.size() < 2) return;
+
+        // Crear vehiculos variados con diferentes origenes y destinos
+        String[][] vehiculosDemo = {
+            {"ABC-101", "PARTICULAR",  "A", "L"},  // Plaza Central -> Aeropuerto
+            {"ABC-202", "PARTICULAR",  "I", "D"},  // Zona Residencial -> Parque Industrial
+            {"ABC-303", "PARTICULAR",  "E", "C"},  // Barrio El Prado -> Av. Norte con Calle 2
+            {"BUS-001", "BUS",         "A", "K"},  // Plaza Central -> Universidad
+            {"BUS-002", "BUS",         "L", "I"},  // Aeropuerto -> Zona Residencial
+            {"AMB-001", "EMERGENCIA",  "G", "A"},  // Hospital -> Plaza Central
+            {"CAM-001", "CARGA",       "D", "I"},  // Parque Industrial -> Zona Residencial
+            {"MOT-001", "MOTOCICLETA", "J", "B"},  // Estadio -> Av. Norte
+        };
+
+        for (String[] datos : vehiculosDemo) {
+            String placa = datos[0];
+            CategoriaVehiculo cat = CategoriaVehiculo.valueOf(datos[1]);
+            Interseccion origen = mapa.buscarInterseccion(datos[2]);
+            Interseccion destino = mapa.buscarInterseccion(datos[3]);
+
+            if (origen != null && destino != null) {
+                Vehiculo v;
+                switch (cat) {
+                    case EMERGENCIA:
+                        v = FabricaVehiculos.crearUnidadEmergencia(placa, UnidadEmergencia.Tipo.AMBULANCIA, origen, destino);
+                        break;
+                    case BUS:
+                        v = FabricaVehiculos.crearBusUrbano(placa, "Ruta-Urbana", 45, origen, destino);
+                        break;
+                    default:
+                        v = FabricaVehiculos.crear(cat, placa, origen, destino);
+                        break;
+                }
+                flota.registrar(v);
+            }
+        }
+        System.out.println("  Se cargaron " + flota.totalActivos() + " vehiculos de prueba variados.");
+    }
+
+    // === SUB-FUNCIONES DE ADMINISTRAR CIUDAD ==================================
+
+    private void agregarInterseccion() {
+        System.out.print("\n  ID de la interseccion (ej. M): ");
+        String id = entrada.nextLine().trim().toUpperCase();
+        System.out.print("  Nombre (ej. Av. Central con Calle 5): ");
+        String nombre = entrada.nextLine().trim();
+        System.out.print("  Coordenada X (metros): ");
+        double x = leerDouble();
+        System.out.print("  Coordenada Y (metros): ");
+        double y = leerDouble();
+        System.out.print("  Tiene semaforo? (s/n): ");
+        boolean semaforo = entrada.nextLine().trim().equalsIgnoreCase("s");
+
+        try {
+            Interseccion nueva = new Interseccion(id, nombre, x, y);
+            nueva.setTieneSemaforo(semaforo);
+            mapa.agregarInterseccion(nueva);
+
+            if (semaforo) {
+                Semaforo sem = new Semaforo("SEM-" + id, nueva, 10, 10);
+                controladorSemaforos.registrar(sem);
+            }
+            System.out.println("  [OK] Interseccion '" + nombre + "' agregada.");
+        } catch (ErrorSistema e) {
+            System.out.println("  [X] Error: " + e.getMessage());
+        }
+    }
+
+    private void agregarCalle() {
+        System.out.println("\n  Intersecciones existentes:");
+        for (Interseccion i : mapa.todasLasIntersecciones()) {
+            System.out.printf("   [%s] %s%n", i.getId(), i.getNombre());
         }
 
-        System.out.println("\n  === REGISTRAR VEHICULO ===");
-        System.out.println("  Tipos de vehiculo:");
-        System.out.println("  1. Auto Particular    2. Unidad de Emergencia");
-        System.out.println("  3. Bus Urbano         4. Camion de Carga");
-        System.out.println("  5. Motocicleta");
-
-        int tipo = leerEnteroValidado("Tipo de vehiculo", 1, 5);
-        System.out.print("  Numero de placa: ");
-        String placa = entrada.nextLine().trim().toUpperCase();
-
-        mapa.mostrarMapa();
-        System.out.print("  ID de la interseccion de ORIGEN: ");
-        String origenId = entrada.nextLine().trim();
-        System.out.print("  ID de la interseccion de DESTINO: ");
-        String destinoId = entrada.nextLine().trim();
+        System.out.print("\n  ID de la interseccion ORIGEN: ");
+        String origenId = entrada.nextLine().trim().toUpperCase();
+        System.out.print("  ID de la interseccion DESTINO: ");
+        String destinoId = entrada.nextLine().trim().toUpperCase();
 
         Interseccion origen  = mapa.buscarInterseccion(origenId);
         Interseccion destino = mapa.buscarInterseccion(destinoId);
 
         if (origen == null || destino == null) {
-            System.out.println("  x Interseccion no encontrada.");
+            System.out.println("  [X] Una o ambas intersecciones no existen.");
             return;
         }
 
-        Vehiculo vehiculo;
-        switch (tipo) {
-            case 1: vehiculo = FabricaVehiculos.crearAutoParticular(placa, "Modelo-Eco", origen, destino); break;
-            case 2: vehiculo = FabricaVehiculos.crearUnidadEmergencia(placa, UnidadEmergencia.Tipo.AMBULANCIA, origen, destino); break;
-            case 3: vehiculo = FabricaVehiculos.crearBusUrbano(placa, "Ruta-Demo", 45, origen, destino); break;
-            case 4: vehiculo = FabricaVehiculos.crear(CategoriaVehiculo.CARGA, placa, origen, destino); break;
-            case 5: vehiculo = FabricaVehiculos.crear(CategoriaVehiculo.MOTOCICLETA, placa, origen, destino); break;
-            default: return;
-        }
+        System.out.print("  Distancia en metros: ");
+        double dist = leerDouble();
+        System.out.print("  Velocidad maxima (km/h): ");
+        double vel = leerDouble();
+        System.out.println("  Tipo de via:");
+        System.out.println("   1. RESIDENCIAL   2. AVENIDA   3. AUTOPISTA   4. EXCLUSIVA_BUS");
+        int catOpc = leerEnteroValidado("Tipo", 1, 4);
+        String[] cats = {"RESIDENCIAL", "AVENIDA", "AUTOPISTA", "EXCLUSIVA_BUS"};
+        String cat = cats[catOpc - 1];
 
-        flota.registrar(vehiculo);
-    }
-
-    // ─── Opcion 3: Calcular ruta ──────────────────────────────────────────────
-
-    private void menuCalcularRuta() {
-        System.out.println("\n  === CALCULAR RUTA OPTIMA ===");
-        System.out.println("  Algoritmos disponibles:");
-        System.out.println("  1. Dijkstra (Ruta mas corta)");
-        System.out.println("  2. A* (Ruta optimizada con heuristica)");
-        System.out.println("  3. Bellman-Ford (Ruta con gestion de atascos)");
-        System.out.println("  4. BFS (Ruta con menos semaforos)");
-        System.out.println("  5. Comparar todos los algoritmos");
-
-        int algoritmo = leerEnteroValidado("Algoritmo", 1, 5);
-        System.out.print("  ID interseccion de origen: ");
-        String origenId = entrada.nextLine().trim();
-        System.out.print("  ID interseccion de destino: ");
-        String destinoId = entrada.nextLine().trim();
-
-        if (algoritmo == 5) {
-            new ComparadorRutas().comparar(mapa, origenId, destinoId);
-            return;
-        }
-
-        EstrategiaRuta[] estrategias = {
-            new RutaMasCorta(), new RutaOptimizada(),
-            new RutaConGestion(), new RutaMenosSemaforos()
-        };
+        System.out.print("  Es doble via? (s/n): ");
+        boolean doble = entrada.nextLine().trim().equalsIgnoreCase("s");
 
         try {
-            List<Interseccion> ruta = estrategias[algoritmo - 1].calcularRuta(mapa, origenId, destinoId);
-            System.out.printf("%n  Ruta encontrada por %s (%d paradas):%n",
-                estrategias[algoritmo - 1].getNombre(), ruta.size());
-            for (int i = 0; i < ruta.size(); i++) {
-                System.out.printf("  %2d. [%s] %s%n", i + 1, ruta.get(i).getId(), ruta.get(i).getNombre());
-            }
-        } catch (ErrorRutaImposible e) {
-            System.out.println("  x " + e.getMessage());
+            com.trafico.modelo.CategoriaCalle categoria =
+                com.trafico.modelo.CategoriaCalle.valueOf(cat);
+            mapa.agregarCalle(new com.trafico.modelo.Calle(origen, destino, dist, vel, categoria, doble));
+            System.out.println("  [OK] Calle agregada: " + origenId + " -> " + destinoId);
+        } catch (IllegalArgumentException | ErrorSistema e) {
+            System.out.println("  [X] Error: " + e.getMessage());
         }
     }
 
-    // ─── Opcion 4: Estado semaforos ────────────────────────────────────────────
-
-    private void menuEstadoSemaforos() {
-        controladorSemaforos.mostrarEstado();
-    }
-
-    // ─── Opcion 5: Iniciar simulacion ─────────────────────────────────────────
-
-    private void menuIniciarSimulacion() {
-        if (mapa.totalIntersecciones() < 2) {
-            System.out.println("  x Carga una ciudad primero (opcion 1 -> demo).");
-            return;
-        }
-
-        System.out.println("\n  === INICIAR SIMULACION ===");
-        System.out.println("  1. Iniciar Simulador Visual (Interfaz Grafica Swing)");
-        System.out.println("  2. Iniciar Simulacion en Consola (Tradicional)");
-        int modo = leerEnteroValidado("Seleccione modo", 1, 2);
-
-        System.out.print("  ¿Agregar vehiculos aleatorios de prueba? (s/n): ");
-        if (entrada.nextLine().trim().equalsIgnoreCase("s")) {
-            agregarVehiculosAleatorios(5);
-        }
-
-        if (modo == 1) {
-            System.out.println("  * Abriendo ventana del simulador grafico...");
-            SwingUtilities.invokeLater(() -> {
-                VentanaSimulador gui = new VentanaSimulador(mapa, flota, controladorSemaforos);
-                gui.setVisible(true);
-            });
-        } else {
-            System.out.print("  Duracion en ticks (1 tick = 1 segundo, recomendado 100): ");
-            int ticks = leerEnteroValidado("Ticks", 1, 10000);
-
-            MotorSimulacion motor = MotorSimulacion.getInstancia();
-            motor.configurar(mapa, flota, controladorSemaforos, ticks);
-            motor.ejecutar();
-
-            InformeTrafico informe = motor.getInforme();
-            informe.mostrarEnConsola(motor.getTickActual(), flota.totalVehiculos(), flota.totalLlegados());
+    private void cargarDesdeArchivo() {
+        System.out.print("  Ruta del archivo (ej. ciudad.txt): ");
+        String rutaCarga = entrada.nextLine().trim();
+        try {
+            mapa = new MapaCiudadGrande();
+            flota = new ControladorFlota(mapa);
+            cargadorMapa.cargar(rutaCarga, mapa);
+            System.out.println("  [OK] Mapa cargado desde " + rutaCarga);
+        } catch (ErrorSistema e) {
+            System.out.println("  [X] Error: " + e.getMessage());
         }
     }
 
-    // ─── Opcion 6: Estadisticas ───────────────────────────────────────────────
-
-    private void menuVerEstadisticas() {
-        System.out.println("\n  === ESTADISTICAS DEL SISTEMA ===");
-        System.out.printf("  Intersecciones : %d%n", mapa.totalIntersecciones());
-        System.out.printf("  Calles         : %d%n", mapa.totalCalles());
-        System.out.printf("  Semaforos      : %d%n", controladorSemaforos.totalSemaforos());
-        System.out.printf("  Vehiculos activos: %d%n", flota.totalActivos());
-        System.out.printf("  Vehiculos llegados: %d%n", flota.totalLlegados());
-        System.out.printf("  Cache de rutas : %s%n", flota.getEstadisticasCache());
-        System.out.printf("  Mapa conexo    : %s%n", mapa.esMapaConexo() ? "Si" : "No");
-    }
-
-    // ─── Opcion 7: Guardar/Cargar mapa ────────────────────────────────────────
-
-    private void menuGuardarCargarMapa() {
-        System.out.println("\n  === GUARDAR / CARGAR MAPA ===");
-        System.out.println("  1. Cargar mapa desde archivo .txt");
-        System.out.println("  2. Exportar mapa actual a archivo .txt");
-        System.out.println("  0. Volver");
-
-        int opcion = leerEnteroValidado("Opcion", 0, 2);
-        switch (opcion) {
-            case 1:
-                System.out.print("  Ruta del archivo (ej. ciudad.txt): ");
-                String rutaCarga = entrada.nextLine().trim();
-                try {
-                    mapa = new MapaCiudadGrande();
-                    flota = new ControladorFlota(mapa);
-                    cargadorMapa.cargar(rutaCarga, mapa);
-                } catch (ErrorSistema e) {
-                    System.out.println("  x Error: " + e.getMessage());
-                }
-                break;
-            case 2:
-                System.out.print("  Carpeta destino (ej. .): ");
-                String carpeta = entrada.nextLine().trim();
-                try {
-                    generadorInforme.exportarMapa(mapa, carpeta);
-                } catch (ErrorSistema e) {
-                    System.out.println("  x Error: " + e.getMessage());
-                }
-                break;
+    private void exportarAArchivo() {
+        System.out.print("  Carpeta de destino (ej. .): ");
+        String carpeta = entrada.nextLine().trim();
+        try {
+            generadorInforme.exportarMapa(mapa, carpeta);
+        } catch (ErrorSistema e) {
+            System.out.println("  [X] Error: " + e.getMessage());
         }
     }
 
-    // ─── Opcion 8: Rubrica UTP (AVL, Arreglos, Ordenamiento y Busqueda) ───────
-
-    private void menuRubricaUTP() {
-        System.out.println("\n  === DEMOSTRACION DE ESTRUCTURAS EXIGIDAS (RUBRICA UTP) ===");
-        System.out.println("  1. Arbol AVL (Insercion, Busqueda, Eliminacion y Recorridos)");
-        System.out.println("  2. Lista Enlazada Simple (Nodos, Insertar, Eliminar, Recorrer)");
-        System.out.println("  3. Algoritmos de Ordenamiento (Burbuja, Insercion, Seleccion sobre Arreglos)");
-        System.out.println("  4. Algoritmos de Busqueda (Secuencial y Binaria)");
-        System.out.println("  0. Volver");
-
-        int opcion = leerEnteroValidado("Opcion UTP", 0, 4);
-        switch (opcion) {
-            case 1: demoArbolAVL(); break;
-            case 2: demoListaEnlazada(); break;
-            case 3: demoOrdenamientoArreglos(); break;
-            case 4: demoBusquedas(); break;
-        }
-    }
+    // === DEMOS RUBRICA UTP ===================================================
 
     private void demoArbolAVL() {
-        System.out.println("\n  --- DEMOSTRACION: ARBOL AVL ---");
-        System.out.println("  (Balanceo automatico de nodos)");
+        System.out.println("\n  --- DEMO: ARBOL AVL (Balanceo automatico) ---");
 
-        // Insertar claves
-        System.out.println("  [AVL] Insertando: C, B, A (Causa rotacion a la derecha)...");
+        System.out.println("  Insertando: C, B, A (provoca rotacion a la derecha)...");
         arbolAVL.insertar("C", "Plaza Central");
         arbolAVL.insertar("B", "Av. Norte con Calle 1");
         arbolAVL.insertar("A", "Av. Central");
 
-        System.out.print("  [AVL] Recorrido In-Order actual: ");
+        System.out.print("  Recorrido In-Order: ");
         arbolAVL.recorridoInOrder();
 
-        System.out.println("  [AVL] Insertando: D, E (Causa rotacion a la izquierda)...");
+        System.out.println("  Insertando: D, E (provoca rotacion a la izquierda)...");
         arbolAVL.insertar("D", "Aeropuerto");
         arbolAVL.insertar("E", "Zona Residencial");
 
-        System.out.print("  [AVL] Recorrido In-Order final: ");
+        System.out.print("  Recorrido In-Order: ");
         arbolAVL.recorridoInOrder();
 
-        // Buscar
-        System.out.print("  [AVL] Buscando clave 'D': ");
+        System.out.print("  Buscando clave 'D': ");
         String resultado = arbolAVL.buscar("D");
         System.out.println(resultado != null ? "Encontrado -> " + resultado : "No encontrado");
 
-        // Eliminar
-        System.out.println("  [AVL] Eliminando clave 'B'...");
+        System.out.println("  Eliminando clave 'B'...");
         arbolAVL.eliminar("B");
 
-        System.out.print("  [AVL] Recorrido In-Order tras eliminar: ");
+        System.out.print("  Recorrido In-Order tras eliminar: ");
         arbolAVL.recorridoInOrder();
     }
 
     private void demoListaEnlazada() {
-        System.out.println("\n  --- DEMOSTRACION: LISTA ENLAZADA SIMPLE ---");
-        System.out.println("  (Implementacion real de nodos desde cero)");
+        System.out.println("\n  --- DEMO: LISTA ENLAZADA SIMPLE (nodos manuales) ---");
 
         listaEnlazada.insertar("Interseccion A");
         listaEnlazada.insertar("Interseccion B");
         listaEnlazada.insertar("Interseccion C");
 
-        System.out.print("  [Lista] Contenido actual: ");
+        System.out.print("  Contenido actual: ");
         listaEnlazada.recorrer();
 
-        System.out.println("  [Lista] Buscando 'Interseccion B': " + (listaEnlazada.buscar("Interseccion B") ? "Encontrado" : "No encontrado"));
+        System.out.println("  Buscando 'Interseccion B': " + (listaEnlazada.buscar("Interseccion B") ? "Encontrado" : "No encontrado"));
 
-        System.out.println("  [Lista] Eliminando 'Interseccion B'...");
+        System.out.println("  Eliminando 'Interseccion B'...");
         listaEnlazada.eliminar("Interseccion B");
 
-        System.out.print("  [Lista] Contenido tras eliminar: ");
+        System.out.print("  Contenido tras eliminar: ");
         listaEnlazada.recorrer();
     }
 
     private void demoOrdenamientoArreglos() {
-        System.out.println("\n  --- DEMOSTRACION: ORDENAMIENTO EN ARREGLOS ---");
+        System.out.println("\n  --- DEMO: ORDENAMIENTO EN ARREGLOS ---");
         String[] datosOriginales = {"Carro", "Ambulancia", "Bus", "Motocicleta", "Trailer"};
 
-        System.out.println("  1. Ordenamiento Burbuja (Bubble Sort)");
-        System.out.println("  2. Ordenamiento Insercion (Insertion Sort)");
-        System.out.println("  3. Ordenamiento Seleccion (Selection Sort)");
-        int metodo = leerEnteroValidado("Seleccione metodo", 1, 3);
+        System.out.println("  Que metodo quieres usar?");
+        System.out.println("   1. Burbuja (Bubble Sort)");
+        System.out.println("   2. Insercion (Insertion Sort)");
+        System.out.println("   3. Seleccion (Selection Sort)");
+        int metodo = leerEnteroValidado("Metodo", 1, 3);
 
         String[] copia = datosOriginales.clone();
-        System.out.print("  Original: ");
+        System.out.print("  Original : ");
         imprimirArreglo(copia);
 
         if (metodo == 1) {
             OrdenamientoBusqueda.ordenarBurbuja(copia);
-            System.out.print("  Burbuja : ");
+            System.out.print("  Burbuja  : ");
         } else if (metodo == 2) {
             OrdenamientoBusqueda.ordenarInsercion(copia);
             System.out.print("  Insercion: ");
@@ -533,17 +657,18 @@ public class PanelControl {
     }
 
     private void demoBusquedas() {
-        System.out.println("\n  --- DEMOSTRACION: ALGORITMOS DE BUSQUEDA ---");
-        String[] marcas = {"Audi", "Chevrolet", "Ford", "Mazda", "Toyota"}; // ordenado para binaria
-        System.out.print("  Arreglo de busqueda: ");
+        System.out.println("\n  --- DEMO: ALGORITMOS DE BUSQUEDA ---");
+        String[] marcas = {"Audi", "Chevrolet", "Ford", "Mazda", "Toyota"};
+        System.out.print("  Arreglo de busqueda (ya ordenado): ");
         imprimirArreglo(marcas);
 
-        System.out.print("  Ingrese marca a buscar: ");
+        System.out.print("  Ingresa la marca a buscar: ");
         String clave = entrada.nextLine().trim();
 
-        System.out.println("  1. Busqueda Secuencial (O(n))");
-        System.out.println("  2. Busqueda Binaria (O(log n) - requiere ordenamiento)");
-        int metodo = leerEnteroValidado("Seleccione metodo", 1, 2);
+        System.out.println("  Que metodo quieres usar?");
+        System.out.println("   1. Busqueda Secuencial  (recorre todo el arreglo)");
+        System.out.println("   2. Busqueda Binaria     (divide y conquista)");
+        int metodo = leerEnteroValidado("Metodo", 1, 2);
 
         int pos;
         if (metodo == 1) {
@@ -553,9 +678,9 @@ public class PanelControl {
         }
 
         if (pos != -1) {
-            System.out.println("  * Elemento encontrado en el indice: " + pos);
+            System.out.println("  [OK] Encontrado en el indice: " + pos);
         } else {
-            System.out.println("  x Elemento no encontrado.");
+            System.out.println("  [X] Elemento no encontrado.");
         }
     }
 
@@ -568,22 +693,7 @@ public class PanelControl {
         System.out.println("]");
     }
 
-    // ─── Utilidades de lectura ────────────────────────────────────────────────
-
-    private void agregarVehiculosAleatorios(int cantidad) {
-        List<Interseccion> lista = mapa.todasLasIntersecciones();
-        if (lista.size() < 2) return;
-
-        String[] placas = {"ABC-123","DEF-456","GHI-789","JKL-012","MNO-345","PQR-678"};
-        for (int i = 0; i < Math.min(cantidad, placas.length); i++) {
-            Interseccion o = lista.get(i % lista.size());
-            Interseccion d = lista.get((i + lista.size() / 2) % lista.size());
-            if (!o.equals(d)) {
-                flota.registrar(FabricaVehiculos.crear(CategoriaVehiculo.PARTICULAR, placas[i], o, d));
-            }
-        }
-        System.out.println("  * " + cantidad + " vehiculos de prueba agregados.");
-    }
+    // === UTILIDADES DE LECTURA ===============================================
 
     private int leerEnteroValidado(String mensaje, int min, int max) {
         while (true) {
@@ -593,7 +703,7 @@ public class PanelControl {
                 if (valor >= min && valor <= max) return valor;
                 System.out.printf("  Ingresa un numero entre %d y %d.%n", min, max);
             } catch (NumberFormatException e) {
-                System.out.println("  Entrada invalida — ingresa un numero entero.");
+                System.out.println("  Entrada invalida -- ingresa un numero entero.");
             }
         }
     }
